@@ -10,12 +10,20 @@ RSS/Atom Feeds  →  ScrapingExpert  →  pending_articles/  →  WikiIngestAgen
                                                               WikiQueryAgent ← Question
 ```
 
+GitHub Trending is collected in parallel and enriched with repository metadata from
+the GitHub REST API before being ingested into its own wiki category.
+
 ### Workflow
 
 1. **Scrape** — `ScrapingExpert` fetches RSS/Atom feeds (blogs, Twitter/X via xgo.ing), extracts article content, and saves them as local JSON files in `pending_articles/`.
 2. **Ingest** — `WikiIngestAgent` reads pending articles, uses LLM to extract entities, concepts, key points, and creates wiki markdown pages under category directories. Entity/concept pages are cross-referenced via `[[wikilink]]` syntax.
 3. **Query** — `WikiQueryAgent` retrieves relevant wiki pages via index + full-text search, synthesizes an answer with citations via LLM, and optionally saves the answer as an analysis page.
 4. **Lint** — `WikiLintAgent` runs health checks: broken wikilinks, orphan pages, index inconsistencies, and LLM-based contradiction detection.
+
+The daily pipeline also writes a per-topic analysis under `wiki/<topic>/analysis/`.
+Each report clusters related sources, extracts cross-source insights, identifies trend
+signals, and records claims that still need validation. GitHub Trends additionally
+includes a ranked-project section and repository metrics.
 
 ## Project Structure
 
@@ -59,6 +67,7 @@ RSS/Atom Feeds  →  ScrapingExpert  →  pending_articles/  →  WikiIngestAgen
 | `ai-highlights` | AI_HIGH_SCORE feeds | AI model releases, research, tools, infrastructure |
 | `industry-news` | INFO_RESOURCES (~150 feeds) | Tech blogs, security, engineering, AI company updates |
 | `engineering-tips` | CODING_PATTERN feeds | Software engineering practices, coding patterns |
+| `github-trends` | GitHub Trending + repository API | Daily hot projects, technology signals, and trend analysis |
 
 ## Quick Start
 
@@ -94,6 +103,12 @@ AZURE_OPENAI_API_KEY=your-azure-key
 
 # Optional: MongoDB config (if not using local storage)
 # MONGO_HOST=...
+
+# Optional: improves GitHub API rate limits and controls the daily Trending scope
+GITHUB_TOKEN=github_pat_...
+GITHUB_TRENDING_SINCE=daily
+GITHUB_TRENDING_LANGUAGE=
+GITHUB_TRENDING_LIMIT=20
 ```
 
 ### Storage Modes
@@ -118,6 +133,7 @@ export USE_LOCAL_STORAGE=true
 python test_local_ingest.py              # Quick test: 2 feeds, few articles
 python run_ai_highlights.py              # Scrape AI feeds → Ingest
 python run_info_resources.py             # Scrape industry feeds → Ingest
+python run_github_trends.py              # GitHub Trending → trend analysis
 
 # Inbox mode — drop files directly
 cp my-article.md pending_articles/inbox/
@@ -154,6 +170,7 @@ Categories:
   ai      → wiki/ai-highlights    (AI 精选)
   info    → wiki/industry-news    (行业时讯)
   coding  → wiki/engineering-tips (工程技巧)
+  github  → wiki/github-trends     (GitHub 技术趋势)
 
 Options:
   --save  Save the answer as an analysis page in the wiki

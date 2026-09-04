@@ -28,6 +28,7 @@ CATEGORY_DIRS = {
     "ai-highlights": "ai-highlights",
     "industry-news": "industry-news",
     "engineering-tips": "engineering-tips",
+    "github-trends": "github-trends",
 }
 DEFAULT_CATEGORY = "industry-news"
 
@@ -47,6 +48,20 @@ class WikiIngestAgent(BaseAgent):
 
 Return ONLY valid JSON. No markdown formatting, no explanation outside the JSON.
 If the article is NOT related to AI Engineering, set is_ai_engineering to false and leave other fields empty arrays/strings."""
+
+    GITHUB_SYSTEM_PROMPT = """You are an open-source technology analyst. Given a GitHub Trending repository snapshot, extract the following as JSON:
+
+{
+  "is_ai_engineering": true,
+  "summary": "A concise Chinese summary of the project, its use case, and why it is trending",
+  "entities": ["Repository, organization, product, framework, or platform names"],
+  "concepts": ["Languages, technology domains, architectures, developer practices, and trend themes"],
+  "key_points": ["3-5 evidence-based takeaways including available rank/star signals"]
+}
+
+All software and developer-infrastructure projects are in scope, not only AI projects.
+Treat rank and stars as attention signals rather than proof of production adoption.
+Return ONLY valid JSON and never invent missing metrics."""
 
     def __init__(self, llm=None, wiki_root: str = None, pending_dir: str = None):
         skip_db = USE_LOCAL_STORAGE
@@ -76,6 +91,8 @@ If the article is NOT related to AI Engineering, set is_ai_engineering to false 
 
     def _get_article_category(self, article: dict) -> str:
         """Resolve the wiki category from the article's source URL."""
+        if article.get("source") == "github-trending":
+            return "github-trends"
         return _SOURCE_CATEGORY_MAP.get(article.get("source", ""), DEFAULT_CATEGORY)
 
     def process(self, state: dict) -> dict:
@@ -108,7 +125,7 @@ If the article is NOT related to AI Engineering, set is_ai_engineering to false 
         published = article.get("published", "")
 
         # Step 1: Extract information via LLM
-        extraction = self._extract_info(content, title)
+        extraction = self._extract_info(content, title, category=category)
 
         if not extraction.get("is_ai_engineering", True):
             self._mark_article_processed(article)
@@ -154,6 +171,15 @@ If the article is NOT related to AI Engineering, set is_ai_engineering to false 
             "entities": entities_links,
             "concepts": concepts_links,
         }
+        if category == "github-trends":
+            github = article.get("github", {})
+            source_fm.update({
+                "github_repo": github.get("full_name", ""),
+                "trending_rank": github.get("rank", ""),
+                "stars_period": github.get("stars_period", ""),
+                "stars": github.get("stars", ""),
+                "language": github.get("language", "Unknown"),
+            })
 
         wm.write_page(source_path, source_body, source_fm)
 
@@ -233,11 +259,12 @@ If the article is NOT related to AI Engineering, set is_ai_engineering to false 
 
     # ── LLM extraction ───────────────────────────────────────────────
 
-    def _extract_info(self, content: str, title: str) -> dict:
+    def _extract_info(self, content: str, title: str, category: str = "") -> dict:
         """Call LLM to extract entities, concepts, and summary from article content."""
         from langchain_core.messages import HumanMessage
 
-        messages = [HumanMessage(content=f"{self.SYSTEM_PROMPT}\n\nArticle: {title}\n\nContent:\n{content[:5000]}")]
+        system_prompt = self.GITHUB_SYSTEM_PROMPT if category == "github-trends" else self.SYSTEM_PROMPT
+        messages = [HumanMessage(content=f"{system_prompt}\n\nArticle: {title}\n\nContent:\n{content[:5000]}")]
         response = self.llm.invoke(messages)
         text = response.content.strip()
 

@@ -317,7 +317,7 @@ LLM_CONFIG = {
     },
     "glm": {
         "api_url": os.environ.get("ANTHROPIC_BASE_URL", ""),
-        "api_key": os.environ.get("ANTHROPIC_API_KEY", ""),
+        "api_key": os.environ.get("ANTHROPIC_AUTH_TOKEN", os.environ.get("ANTHROPIC_API_KEY", "")),
         "model": os.environ.get("ANTHROPIC_MODEL", ""),
     },
 }
@@ -339,21 +339,37 @@ GITHUB_CONFIG = {
   "target_dir": "src/app/[locale]/blog/posts",
   "github_token": os.environ.get("GITHUB_TOKEN", ""),
   "repo_url": os.environ.get("GITHUB_REPO_URL", ""),
+  "trending_since": os.environ.get("GITHUB_TRENDING_SINCE", "daily"),
+  "trending_language": os.environ.get("GITHUB_TRENDING_LANGUAGE", ""),
+  "trending_limit": int(os.environ.get("GITHUB_TRENDING_LIMIT", "20")),
 }
 
 
 def build_llm(name: str = None):
-    """Build a CustomChatModel from LLM_CONFIG. Default uses Azure OpenAI."""
+    """Build a configured CustomChatModel with an actionable error if config is missing."""
     if name is None:
         if os.environ.get("AZURE_OPENAI_BASE_URL"):
             name = "azure"
         elif os.environ.get("ANTHROPIC_AUTH_TOKEN"):
             name = "glm"
-        else:
+        elif all(os.environ.get(key) for key in ("LLM_GPT4O_URL", "LLM_API_KEY", "LLM_GPT4O_MODEL")):
             name = "gpt4o"
-    """Build a CustomChatModel from LLM_CONFIG. Supports 'deepseek' or 'gpt4o'."""
+        elif all(os.environ.get(key) for key in ("LLM_DEEPSEEK_URL", "LLM_API_KEY", "LLM_DEEPSEEK_MODEL")):
+            name = "deepseek"
+        else:
+            raise RuntimeError(
+                "No LLM is configured. Create a .env file and configure one backend: "
+                "AZURE_OPENAI_BASE_URL/AZURE_OPENAI_API_KEY/AZURE_OPENAI_MODEL, "
+                "ANTHROPIC_BASE_URL/ANTHROPIC_AUTH_TOKEN/ANTHROPIC_MODEL, or "
+                "LLM_GPT4O_URL/LLM_API_KEY/LLM_GPT4O_MODEL."
+            )
     from ..agents.custom_llm import CustomChatModel
+    if name not in LLM_CONFIG:
+        raise ValueError(f"Unknown LLM backend: {name}. Choose from: {', '.join(LLM_CONFIG)}")
     cfg = LLM_CONFIG[name]
+    missing = [key for key in ("api_url", "api_key", "model") if not cfg.get(key)]
+    if missing:
+        raise RuntimeError(f"LLM backend '{name}' is missing configuration: {', '.join(missing)}")
     return CustomChatModel(
         api_url=cfg["api_url"],
         api_key=cfg["api_key"],

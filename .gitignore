@@ -3,6 +3,7 @@ __pycache__/
 /wiki
 /tests
 /learn
+.env
 *.py[cod]
 *$py.class
 .DS_Store

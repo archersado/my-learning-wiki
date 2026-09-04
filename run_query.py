@@ -14,6 +14,7 @@ CATEGORIES = {
     "ai": "wiki/ai-highlights",
     "info": "wiki/industry-news",
     "coding": "wiki/engineering-tips",
+    "github": "wiki/github-trends",
 }
 
 USAGE = """
@@ -24,6 +25,7 @@ Categories:
   ai      → wiki/ai-highlights   (AI 精选)
   info    → wiki/industry-news   (行业时讯)
   coding  → wiki/engineering-tips (工程技巧)
+  github  → wiki/github-trends     (GitHub 技术趋势)
 
 Options:
   --save  Save the answer as an analysis page in the wiki
@@ -32,6 +34,7 @@ Examples:
   python run_query.py ai "最近有哪些重要的 AI 进展？"
   python run_query.py ai "GPT-5.5 有哪些新特性？" --save
   python run_query.py coding "有哪些实用的 Agent 工程实践？"
+  python run_query.py github "最近有哪些值得关注的开源技术趋势？"
 """
 
 

@@ -21,7 +21,7 @@ from src.agents.wiki.wiki_manager import WikiManager
 
 WIKI_ROOT = Path(__file__).parent / "wiki"
 QUERY_DIR = "query"
-CATEGORIES = ["ai-highlights", "industry-news", "engineering-tips"]
+CATEGORIES = ["ai-highlights", "industry-news", "engineering-tips", "github-trends"]
 
 
 def main():

@@ -12,7 +12,7 @@ class CustomChatModel(BaseChatModel):
     api_key: str = Field(..., min_length=1)
     temperature: float = Field(default=0.5, ge=0)
     top_p: float = Field(default=1.0, alias="topP")
-    stream: bool = Field(default=True)
+    streaming: bool = Field(default=True)
     model_config = ConfigDict(env_prefix="MY_MODEL_")
 
     @property
@@ -26,7 +26,7 @@ class CustomChatModel(BaseChatModel):
         # Azure OpenAI doesn't work well with generic stream mode
         if "openai.azure.com" in api_url:
             stream = False
-        self.stream = stream
+        self.streaming = stream
 
     def _generate(
         self,
@@ -63,7 +63,7 @@ class CustomChatModel(BaseChatModel):
                 "model": self.model_name,
                 "temperature": self.temperature,
                 "top_p": self.top_p,
-                "stream": self.stream,
+                "stream": self.streaming,
             }
             headers = {
                 "Content-Type": "application/json",
@@ -71,7 +71,7 @@ class CustomChatModel(BaseChatModel):
             }
 
         try:
-            if self.stream:
+            if self.streaming:
                 # Streaming response
                 response = requests.post(
                     self.api_url,
